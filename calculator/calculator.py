@@ -5,27 +5,22 @@ from statistics import mean
 
 
 __TOKEN_SPECIFICATION = {
-    'ADDITION': r'\+',
-    'SUBTRACTION': r'-',
-    'MULTIPLICATION': r'\*',
-    'DIVISION': r'/',
-    'POWER': r'\^',
-    'NEGATE': r'~',
-    'MODULE': r'%',
-    'FACTORIAL': r'!',
-    'AVERAGE': r'@',
-    'MAX': r'\$',
-    'MIN': r'&',
+    'ADDITION': r'(?P<ADDITION>\+)',
+    'SUBTRACTION': r'(?P<SUBTRACTION>-)',
+    'MULTIPLICATION': r'(?P<MULTIPLICATION>\*)',
+    'DIVISION': r'(?P<DIVISION>/)',
+    'POWER': r'(?P<POWER>\^)',
+    'NEGATE': r'(?P<NEGATE>~)',
+    'MODULE': r'(?P<MODULE>%)',
+    'FACTORIAL': r'(?P<FACTORIAL>!)',
+    'AVERAGE': r'(?P<AVERAGE>@)',
+    'MAX': r'(?P<MAX>\$)',
+    'MIN': r'(?P<MIN>&)',
     'LEFT_PARENTHESIS': r'\(',
     'RIGHT_PARENTHESIS': r'\)',
-    'NUMBER': '\d+',
-    'NUMBER_FLOAT': '\d+\.\d+',
+    'NUMBER': '\d+(?:\.\d+)?',
+    'NUMBER_NEGATIVE_OPT': '-?\d+(?:\.\d+)?',
 }
-
-__NUMBER_REGEX = f'{__TOKEN_SPECIFICATION["SUBTRACTION"]}{__TOKEN_SPECIFICATION["NUMBER_FLOAT"]}|' \
-                 f'{__TOKEN_SPECIFICATION["SUBTRACTION"]}{__TOKEN_SPECIFICATION["NUMBER"]}|' \
-                 f'{__TOKEN_SPECIFICATION["NUMBER_FLOAT"]}|' \
-                 f'{__TOKEN_SPECIFICATION["NUMBER"]}'
 
 
 def calculate(expression: str) -> Union[int, float]:
@@ -46,7 +41,7 @@ def __calculate(expression: str) -> Union[int, float]:
     raise ValueError(f'Expression: {expression} is not legal!')
 
 def __is_end_of_calculation(expression: str) -> bool:
-    return re.fullmatch(f'{__NUMBER_REGEX}', expression) is not None
+    return re.fullmatch(f'{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]}', expression) is not None
 
 def __handle_parenthesis(expression: str) -> str:
     token = re.search(f'{__TOKEN_SPECIFICATION["LEFT_PARENTHESIS"]}'
@@ -55,82 +50,86 @@ def __handle_parenthesis(expression: str) -> str:
                       expression)
 
     if token:
-        return expression[:token.start():] + str(__calculate(token.group(1))) + expression[token.end()::]
+        return re.sub(token.re, str(__calculate(token.group(1))), expression, 1)
 
     return None
 
 def __handle_factorial(expression: str) -> str:
-    token = re.search(f'({__NUMBER_REGEX}){__TOKEN_SPECIFICATION["FACTORIAL"]}', expression)
+    token = re.search(f'(?P<NUMBER>{__TOKEN_SPECIFICATION["NUMBER"]}){__TOKEN_SPECIFICATION["FACTORIAL"]}', expression)
 
     if token:
-        return expression[:token.start():] + str(math.factorial(float(token.group(1)))) + expression[token.end()::]
+        return re.sub(token.re, str(math.factorial(float(token.group("NUMBER")))), expression, 1)
 
     return None
 
 def __handle_negate(expression: str) -> str:
-    token = re.search(f'({__NUMBER_REGEX}){__TOKEN_SPECIFICATION["NEGATE"]}', expression)
+    token = re.search(f'(?P<NUMBER>{__TOKEN_SPECIFICATION["NUMBER"]}){__TOKEN_SPECIFICATION["NEGATE"]}', expression)
 
     if token:
-        return expression[:token.start():] + str(-1 * float(token.group(1))) + expression[token.end()::]
+        return re.sub(token.re, str(-1 * float(token.group("NUMBER"))), expression, 1)
 
     return None
 
 def __handle_max_min_average(expression: str) -> str:
-    token = re.search(f'({__NUMBER_REGEX})'
-                      f'([{__TOKEN_SPECIFICATION["MAX"]}{__TOKEN_SPECIFICATION["MIN"]}'
-                      f'{__TOKEN_SPECIFICATION["AVERAGE"]}])'
-                      f'({__NUMBER_REGEX})',
+    token = re.search(f'(?P<FIRST_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})'
+                      f'({__TOKEN_SPECIFICATION["MAX"]}|{__TOKEN_SPECIFICATION["MIN"]}|'
+                      f'{__TOKEN_SPECIFICATION["AVERAGE"]})'
+                      f'(?P<SECOND_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})',
                       expression)
 
     if token:
-        if token.group(2) == '$':
-            result = max(float(token.group(1)), float(token.group(3)))
-        elif token.group(2) == '&':
-            result = min(float(token.group(1)), float(token.group(3)))
+        if token.group("MAX"):
+            result = max(float(token.group("FIRST_NUMBER")), float(token.group("SECOND_NUMBER")))
+        elif token.group("MIN"):
+            result = min(float(token.group("FIRST_NUMBER")), float(token.group("SECOND_NUMBER")))
         else:
-            result = mean([float(token.group(1)), float(token.group(3))])
+            result = mean([float(token.group("FIRST_NUMBER")), float(token.group("SECOND_NUMBER"))])
 
-        return expression[:token.start():] + str(result) + expression[token.end()::]
+        return re.sub(token.re, str(result), expression, 1)
 
     return None
 
 def __handle_power(expression: str) -> str:
-    token = re.search(f'({__NUMBER_REGEX}){__TOKEN_SPECIFICATION["POWER"]}({__NUMBER_REGEX})', expression)
+    token = re.search(f'(?P<FIRST_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})'
+                      f'{__TOKEN_SPECIFICATION["POWER"]}'
+                      f'(?P<SECOND_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})',
+                      expression)
 
     if token:
-        return expression[:token.start():] + str(float(token.group(1)) ** float(token.group(2))) + expression[token.end()::]
+        return re.sub(token.re, str(float(token.group("FIRST_NUMBER")) ** float(token.group("SECOND_NUMBER"))),
+                      expression, 1)
 
     return None
 
 def __handle_multiplication_division(expression: str) -> str:
-    token = re.search(f'({__NUMBER_REGEX})'
-                      f'([{__TOKEN_SPECIFICATION["MULTIPLICATION"]}{__TOKEN_SPECIFICATION["DIVISION"]}])'
-                      f'({__NUMBER_REGEX})',
+    token = re.search(f'(?P<FIRST_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})'
+                      f'(?:{__TOKEN_SPECIFICATION["MULTIPLICATION"]}|{__TOKEN_SPECIFICATION["DIVISION"]})'
+                      f'(?P<SECOND_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})',
                       expression)
 
     if token:
-        if token.group(2) == '*':
-            result = float(token.group(1)) * float(token.group(3))
+        if token.group("MULTIPLICATION"):
+            result = float(token.group("FIRST_NUMBER")) * float(token.group("SECOND_NUMBER"))
         else:
-            result = float(token.group(1)) / float(token.group(3))
+            result = float(token.group("FIRST_NUMBER")) / float(token.group("SECOND_NUMBER"))
 
-        return expression[:token.start():] + str(result) + expression[token.end()::]
+        return re.sub(token.re, str(result), expression, 1)
 
     return None
 
 def __handle_addition_subtraction(expression: str) -> str:
-    token = re.search(f'({__NUMBER_REGEX})'
-                      f'([{__TOKEN_SPECIFICATION["ADDITION"]}{__TOKEN_SPECIFICATION["SUBTRACTION"]}])'
-                      f'({__NUMBER_REGEX})',
+    token = re.search(f'(?P<FIRST_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})'
+                      f'(?:{__TOKEN_SPECIFICATION["ADDITION"]}|{__TOKEN_SPECIFICATION["SUBTRACTION"]})'
+                      f'(?P<SECOND_NUMBER>{__TOKEN_SPECIFICATION["NUMBER_NEGATIVE_OPT"]})',
                       expression)
 
     if token:
-        if token.group(2) == '+':
-            result = float(token.group(1)) + float(token.group(3))
+        if token.group("ADDITION"):
+            result = float(token.group("FIRST_NUMBER")) + float(token.group("SECOND_NUMBER"))
         else:
-            result = float(token.group(1)) - float(token.group(3))
+            result = float(token.group("FIRST_NUMBER")) - float(token.group("SECOND_NUMBER"))
 
-        return expression[:token.start():] + str(result) + expression[token.end()::]
+        return re.sub(token.re, str(result), expression, 1)
 
     return None
 
@@ -144,3 +143,9 @@ __OPERATION_HANDLERS = (
     __handle_multiplication_division,
     __handle_addition_subtraction,
 )
+
+exp = "4 + (5 + 2! - 3!) + ((5 * 3) @ 13)" # 19
+print(calculate(exp))
+
+# tok = re.search('(-?\d+(?:\.\d+)?)(?P<MULT>\*)(-?\d+(?:\.\d+)?)', "5*2")
+# print(tok.group('GE'))
