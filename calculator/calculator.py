@@ -1,7 +1,7 @@
 import re
 import math
-from statistics import mean
 from typing import Union
+from statistics import mean
 
 
 __TOKEN_SPECIFICATION = {
@@ -18,24 +18,14 @@ __TOKEN_SPECIFICATION = {
     'MIN': r'&',
     'LEFT_PARENTHESIS': r'\(',
     'RIGHT_PARENTHESIS': r'\)',
-    'NUMBER': '\w+',
-    'NUMBER_FLOAT': '\w+\.\w+',
+    'NUMBER': '\d+',
+    'NUMBER_FLOAT': '\d+\.\d+',
 }
 
 __NUMBER_REGEX = f'{__TOKEN_SPECIFICATION["SUBTRACTION"]}{__TOKEN_SPECIFICATION["NUMBER_FLOAT"]}|' \
                  f'{__TOKEN_SPECIFICATION["SUBTRACTION"]}{__TOKEN_SPECIFICATION["NUMBER"]}|' \
                  f'{__TOKEN_SPECIFICATION["NUMBER_FLOAT"]}|' \
                  f'{__TOKEN_SPECIFICATION["NUMBER"]}'
-
-__OPERATION_HANDLERS = (
-    "__handle_parenthesis",
-    "__handle_factorial",
-    "__handle_negate",
-    "__handle_max_min_average",
-    "__handle_power",
-    "__handle_multiplication_division",
-    "__handle_addition_subtraction",
-)
 
 
 def calculate(expression: str) -> Union[int, float]:
@@ -44,27 +34,19 @@ def calculate(expression: str) -> Union[int, float]:
 
     return __calculate(re.sub("\s", "", expression))
 
-
 def __calculate(expression: str) -> Union[int, float]:
     if __is_end_of_calculation(expression):
         return expression
 
     for func in __OPERATION_HANDLERS:
-        tmp_result = eval(func)(expression)
-        if tmp_result is None:
-            continue
-        else:
+        tmp_result = func(expression)
+        if tmp_result is not None:
             return __calculate(tmp_result)
 
     raise ValueError(f'Expression: {expression} is not legal!')
 
-
 def __is_end_of_calculation(expression: str) -> bool:
-    if re.search(f'^({__NUMBER_REGEX})$', expression):
-        return True
-
-    return False
-
+    return re.fullmatch(f'{__NUMBER_REGEX}', expression) is not None
 
 def __handle_parenthesis(expression: str) -> str:
     token = re.search(f'{__TOKEN_SPECIFICATION["LEFT_PARENTHESIS"]}'
@@ -77,7 +59,6 @@ def __handle_parenthesis(expression: str) -> str:
 
     return None
 
-
 def __handle_factorial(expression: str) -> str:
     token = re.search(f'({__NUMBER_REGEX}){__TOKEN_SPECIFICATION["FACTORIAL"]}', expression)
 
@@ -86,7 +67,6 @@ def __handle_factorial(expression: str) -> str:
 
     return None
 
-
 def __handle_negate(expression: str) -> str:
     token = re.search(f'({__NUMBER_REGEX}){__TOKEN_SPECIFICATION["NEGATE"]}', expression)
 
@@ -94,7 +74,6 @@ def __handle_negate(expression: str) -> str:
         return expression[:token.start():] + str(-1 * float(token.group(1))) + expression[token.end()::]
 
     return None
-
 
 def __handle_max_min_average(expression: str) -> str:
     token = re.search(f'({__NUMBER_REGEX})'
@@ -115,7 +94,6 @@ def __handle_max_min_average(expression: str) -> str:
 
     return None
 
-
 def __handle_power(expression: str) -> str:
     token = re.search(f'({__NUMBER_REGEX}){__TOKEN_SPECIFICATION["POWER"]}({__NUMBER_REGEX})', expression)
 
@@ -123,7 +101,6 @@ def __handle_power(expression: str) -> str:
         return expression[:token.start():] + str(float(token.group(1)) ** float(token.group(2))) + expression[token.end()::]
 
     return None
-
 
 def __handle_multiplication_division(expression: str) -> str:
     token = re.search(f'({__NUMBER_REGEX})'
@@ -141,7 +118,6 @@ def __handle_multiplication_division(expression: str) -> str:
 
     return None
 
-
 def __handle_addition_subtraction(expression: str) -> str:
     token = re.search(f'({__NUMBER_REGEX})'
                       f'([{__TOKEN_SPECIFICATION["ADDITION"]}{__TOKEN_SPECIFICATION["SUBTRACTION"]}])'
@@ -157,3 +133,14 @@ def __handle_addition_subtraction(expression: str) -> str:
         return expression[:token.start():] + str(result) + expression[token.end()::]
 
     return None
+
+
+__OPERATION_HANDLERS = (
+    __handle_parenthesis,
+    __handle_factorial,
+    __handle_negate,
+    __handle_max_min_average,
+    __handle_power,
+    __handle_multiplication_division,
+    __handle_addition_subtraction,
+)
