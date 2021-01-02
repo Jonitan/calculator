@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="jonitan-calculator",
-    version="0.3.4",
+    version="0.3.5",
     author="Yonatan Naisteter",
     author_email="skiba8150@gmail.com",
     description="Simple calculator implementation.",
